@@ -1,1 +1,8 @@
 env/
+jobs.json
+new_jobs.json
+main.py
+kestra.yaml
+schema.prisma
+.env
+test.py

@@ -1,0 +1,46 @@
+id: job_board_daily_workflow
+namespace: acciojobs
+
+variables:
+  repo_url: "https://github.com/tejas-raskar/AccioJobs-Backend.git"
+  clone_dir: "/tmp/acciojobs"
+  db_url: "your-database-url"
+
+tasks:
+  - id: fetch_and_process_jobs
+    type: io.kestra.plugin.core.flow.WorkingDirectory
+    tasks:
+      - id: clone_repo
+        type: io.kestra.plugin.git.Clone
+        url: "https://github.com/tejas-raskar/AccioJobs-Backend.git"
+        branch: main
+
+      - id: fetch_jobs
+        type: io.kestra.plugin.scripts.python.Script
+        taskRunner:
+          type: io.kestra.plugin.scripts.runner.docker.Docker
+        containerImage: python:3.13.0-bookworm
+        beforeCommands:
+          - pip install requests beautifulsoup4 feedparser psycopg2-binary
+        script: |
+            import json
+            from scripts.fetch_jobs_api import all_jobs as api_jobs
+            from scripts.fetch_jobs_rss import cleaned_rss_jobs as rss_jobs
+
+            combined_jobs = api_jobs + rss_jobs
+
+            unique_jobs = {}
+            for job in combined_jobs:
+                key = f"{job['position']}_{job['company']}"
+                if key not in unique_jobs:
+                    unique_jobs[key] = job
+
+            final_jobs = list(unique_jobs.values())
+
+            # Save to output
+            with open('jobs.json', 'w') as f:
+                json.dump(final_jobs, f)
+                
+        outputFiles:
+          - jobs.json
+      
